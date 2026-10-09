@@ -1,0 +1,852 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeoCare Monitor | Newborn Vital Signs</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: #9ca3af;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2937;
+      background: #9ca3af !important;
+    }
+
+    /* Entire page remains grey */
+    .dashboard-container {
+      width: 100%;
+      max-width: 1500px;
+      margin: 0 auto;
+      background: #9ca3af !important;
+    }
+
+    .header {
+      background: #374151;
+      color: white;
+      padding: 24px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      box-shadow: 0 5px 15px #00000012;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .logo {
+      font-size: 42px;
+    }
+
+    .header h1 {
+      margin: 0 0 7px;
+      font-size: clamp(22px, 3vw, 32px);
+    }
+
+    .header p {
+      margin: 4px 0;
+      color: #bae6fd;
+    }
+
+    .header small {
+      color: #cbd5e1;
+    }
+
+    .connection {
+      background: #065f46;
+      color: #d1fae5;
+      padding: 12px 17px;
+      border-radius: 30px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .connection::before {
+      content: "●";
+      color: #34d399;
+      margin-right: 8px;
+    }
+
+    .connection.offline {
+      background: #7f1d1d;
+      color: white;
+    }
+
+    .connection.offline::before {
+      color: #fca5a5;
+    }
+
+    .updated {
+      color: #e5e7eb;
+      font-size: 13px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      padding: 23px;
+      border-radius: 16px;
+      min-width: 0;
+      box-shadow: 0 5px 14px #00000010;
+      border: 1px solid #ffffff80;
+    }
+
+    .spo2 { background: #dbeafe; color: #1d4ed8; }
+    .heart { background: #fce7f3; color: #be185d; }
+    .resp { background: #dcfce7; color: #15803d; }
+    .temp { background: #fef3c7; color: #b45309; }
+
+    .metric-label {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 17px;
+    }
+
+    .metric-value {
+      font-size: clamp(25px, 3vw, 36px);
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-unit {
+      font-size: 17px;
+    }
+
+    .metric-note {
+      font-size: 13px;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    .pill {
+      display: inline-block;
+      margin-top: 13px;
+      padding: 7px 13px;
+      border-radius: 20px;
+      background: #ffffff90;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(270px, 0.9fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: #f3f4f6;
+      border: 1px solid #ffffff80;
+      border-radius: 16px;
+      padding: 23px;
+      min-width: 0;
+      box-shadow: 0 5px 14px #00000010;
+    }
+
+    .panel h2 {
+      margin: 0 0 22px;
+      font-size: 21px;
+      color: #334155;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 330px;
+      width: 100%;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      font-size: 12px;
+      margin: -8px 0 17px;
+      color: #475569;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .status-box {
+      padding: 17px;
+      border-radius: 12px;
+      background: #e5e7eb;
+      margin-bottom: 18px;
+      line-height: 1.6;
+    }
+
+    .status-box h3 {
+      margin: 0 0 7px;
+      font-size: 17px;
+    }
+
+    .status-box p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .reference {
+      background: #e2e8f0;
+      border-radius: 12px;
+      padding: 17px;
+    }
+
+    .reference h3 {
+      margin: 0 0 13px;
+      font-size: 16px;
+    }
+
+    .reference-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    .reference-row:last-child {
+      border-bottom: none;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid #d1d5db;
+    }
+
+    th {
+      color: #475569;
+      background: #e5e7eb;
+    }
+
+    .blue-text { color: #2563eb; font-weight: bold; }
+    .pink-text { color: #db2777; font-weight: bold; }
+    .green-text { color: #15803d; font-weight: bold; }
+    .orange-text { color: #b45309; font-weight: bold; }
+
+    .info-row {
+      padding: 12px 0;
+      border-bottom: 1px solid #d1d5db;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .disclaimer {
+      background: #4b5563;
+      color: #f9fafb;
+      border-radius: 14px;
+      padding: 19px;
+      font-size: 13px;
+      line-height: 1.7;
+      margin-top: 20px;
+    }
+
+    .footer {
+      color: #374151;
+      font-size: 12px;
+      text-align: center;
+      padding: 18px 5px 5px;
+    }
+
+    .muted {
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1050px) {
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .content-grid,
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      .header { padding: 18px; }
+      .metric-card { padding: 16px; }
+      .panel { padding: 16px; }
+      .chart-wrap { height: 280px; }
+      .metrics { gap: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="dashboard-container">
+
+  <header class="header">
+    <div class="brand">
+      <div class="logo">👶</div>
+      <div>
+        <h1>NeoCare Monitor</h1>
+        <p>Newborn Vital Signs Dashboard</p>
+        <small>IoT | MAX30102 | ThingSpeak</small>
+      </div>
+    </div>
+
+    <div>
+      <div class="connection offline" id="connection">Connecting...</div>
+      <p class="updated" id="updated">Waiting for ThingSpeak data...</p>
+    </div>
+  </header>
+
+  <section class="metrics">
+    <article class="metric-card spo2">
+      <div class="metric-label">💧 SpO₂</div>
+      <div class="metric-value" id="spo2">--%</div>
+      <div class="metric-note">Latest uploaded reading</div>
+      <span class="pill">Field 1</span>
+    </article>
+
+    <article class="metric-card heart">
+      <div class="metric-label">💗 Heart Rate</div>
+      <div class="metric-value">
+        <span id="heartRate">--</span>
+        <span class="metric-unit">bpm</span>
+      </div>
+      <div class="metric-note">Latest uploaded reading</div>
+      <span class="pill">Field 2</span>
+    </article>
+
+    <article class="metric-card resp">
+      <div class="metric-label">🫁 Respiratory Rate</div>
+      <div class="metric-value">
+        <span id="respRate">--</span>
+        <span class="metric-unit">/min</span>
+      </div>
+      <div class="metric-note">Historical graph below</div>
+      <span class="pill">Field 3</span>
+    </article>
+
+    <article class="metric-card temp">
+      <div class="metric-label">🌡️ Temperature</div>
+      <div class="metric-value">
+        <span id="temperature">--</span>
+        <span class="metric-unit">°C</span>
+      </div>
+      <div class="metric-note">Requires a temperature sensor</div>
+      <span class="pill">Field 4</span>
+    </article>
+  </section>
+
+  <section class="content-grid">
+    <article class="panel">
+      <h2>📈 Respiratory Rate History</h2>
+
+      <div class="legend">
+        <span><i class="dot" style="background:#16a34a"></i>40–60 breaths/min reference</span>
+        <span><i class="dot" style="background:#ef4444"></i>Outside reference</span>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="respChart"></canvas>
+      </div>
+
+      <p class="muted" id="chartNote">
+        Historical readings will appear here after data is retrieved.
+      </p>
+    </article>
+
+    <aside class="panel">
+      <h2>🩺 Reading Information</h2>
+
+      <div class="status-box" id="readingStatus">
+        <h3>Awaiting data</h3>
+        <p>The latest respiratory-rate reading will appear here when available.</p>
+      </div>
+
+      <div class="reference">
+        <h3>Reference Information</h3>
+        <div class="reference-row">
+          <span>SpO₂</span><strong>Not assessed here</strong>
+        </div>
+        <div class="reference-row">
+          <span>Heart rate</span><strong>Age-dependent</strong>
+        </div>
+        <div class="reference-row">
+          <span>Respiratory rate</span><strong>40–60/min*</strong>
+        </div>
+        <div class="reference-row">
+          <span>Temperature</span><strong>Method-dependent</strong>
+        </div>
+        <p class="muted">
+          *Typical newborn respiratory-rate reference when calm.
+          This is not a diagnosis.
+        </p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="bottom-grid">
+    <article class="panel">
+      <h2>🕒 Recent Historical Readings</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>SpO₂</th>
+              <th>Heart Rate</th>
+              <th>Respiratory Rate</th>
+              <th>Temperature</th>
+            </tr>
+          </thead>
+          <tbody id="historyTable">
+            <tr><td colspan="5">Loading historical readings...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel">
+      <h2>📡 Connection Details</h2>
+      <div class="info-row">
+        <strong>Service:</strong> ThingSpeak
+      </div>
+      <div class="info-row">
+        <strong>Channel ID:</strong>
+        <span id="channelDisplay">Not configured</span>
+      </div>
+      <div class="info-row">
+        <strong>Historical records:</strong>
+        <span id="recordCount">0</span>
+      </div>
+      <div class="info-row">
+        <strong>Refresh interval:</strong> 30 seconds
+      </div>
+      <div class="info-row">
+        <strong>Data status:</strong>
+        <span id="dataStatus">Waiting for connection</span>
+      </div>
+    </article>
+  </section>
+
+  <div class="disclaimer">
+    <strong>Educational prototype notice</strong><br>
+    This dashboard is for student demonstration purposes only. The MAX30102
+    does not directly measure respiratory rate or temperature. Respiratory
+    rate requires a validated measurement or estimation method, and temperature
+    requires a suitable separate sensor. Optical readings can be inaccurate,
+    particularly in newborns. Do not use this dashboard to diagnose or make
+    medical decisions. Seek professional medical help for concerns about a baby.
+  </div>
+
+  <footer class="footer">
+    NeoCare Monitor | IoT Student Project
+  </footer>
+
+</div>
+
+<script>
+  // =========================================================
+  // THINGSPEAK CONFIGURATION
+  // =========================================================
+
+  const CHANNEL_ID = "3528650";
+
+  // Leave blank if your channel is PUBLIC.
+  // For a private channel, enter its READ API KEY.
+  // Never put your WRITE API KEY in this dashboard.
+  const READ_API_KEY = "";
+
+  const RESULTS_LIMIT = 60;
+  const REFRESH_INTERVAL = 30000;
+
+  // Field mapping:
+  // Field 1 = SpO2
+  // Field 2 = Heart Rate
+  // Field 3 = Respiratory Rate
+  // Field 4 = Temperature
+
+  let respiratoryChart = null;
+
+  const $ = id => document.getElementById(id);
+
+  function validNumber(value) {
+    if (value === null || value === undefined || value === "") {
+      return null;
+    }
+
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function formatValue(value, suffix = "") {
+    const number = validNumber(value);
+    return number === null ? "--" + suffix : number + suffix;
+  }
+
+  function formatTimestamp(timestamp) {
+    if (!timestamp) return "Unknown time";
+
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) return "Unknown time";
+
+    return date.toLocaleString();
+  }
+
+  function makeApiUrl() {
+    if (!/^\d+$/.test(CHANNEL_ID)) {
+      throw new Error("Enter your numeric ThingSpeak Channel ID in the code.");
+    }
+
+    let url =
+      "https://api.thingspeak.com/channels/" +
+      encodeURIComponent(CHANNEL_ID) +
+      "/feeds.json?results=" +
+      RESULTS_LIMIT;
+
+    if (READ_API_KEY.trim() !== "") {
+      url += "&api_key=" + encodeURIComponent(READ_API_KEY.trim());
+    }
+
+    return url;
+  }
+
+  function setConnection(connected, message) {
+    const element = $("connection");
+    element.textContent = message;
+    element.classList.toggle("offline", !connected);
+
+    $("dataStatus").textContent = connected
+      ? "Data retrieved"
+      : "Connection unavailable";
+  }
+
+  function createOrUpdateChart(feeds) {
+    const validFeeds = feeds.filter(feed =>
+      validNumber(feed.field3) !== null
+    );
+
+    const labels = validFeeds.map(feed => {
+      const date = new Date(feed.created_at);
+      return Number.isNaN(date.getTime())
+        ? "Unknown"
+        : date.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+          });
+    });
+
+    const values = validFeeds.map(feed => Number(feed.field3));
+
+    const pointColors = values.map(value =>
+      value < 40 || value > 60 ? "#ef4444" : "#16a34a"
+    );
+
+    const canvas = $("respChart");
+
+    if (respiratoryChart) {
+      respiratoryChart.data.labels = labels;
+      respiratoryChart.data.datasets[0].data = values;
+      respiratoryChart.data.datasets[0].pointBackgroundColor = pointColors;
+      respiratoryChart.update();
+    } else {
+      respiratoryChart = new Chart(canvas, {
+        type: "line",
+
+        data: {
+          labels: labels,
+
+          datasets: [{
+            label: "Respiratory Rate",
+            data: values,
+
+            borderColor: "#2563eb",
+            backgroundColor: "#93c5fd",
+
+            borderWidth: 3,
+            tension: 0.25,
+
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            pointBorderColor: "#ffffff",
+            pointBorderWidth: 2,
+            pointBackgroundColor: pointColors
+          }]
+        },
+
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+
+          interaction: {
+            intersect: false,
+            mode: "index"
+          },
+
+          plugins: {
+            legend: {
+              display: false
+            },
+
+            tooltip: {
+              callbacks: {
+                label: context =>
+                  context.parsed.y + " breaths/min"
+              }
+            }
+          },
+
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "Time"
+              },
+
+              grid: {
+                color: "#e2e8f0"
+              }
+            },
+
+            y: {
+              beginAtZero: true,
+
+              title: {
+                display: true,
+                text: "Breaths per minute"
+              },
+
+              grid: {
+                color: "#e2e8f0"
+              }
+            }
+          }
+        }
+      });
+    }
+
+    $("chartNote").textContent =
+      validFeeds.length +
+      " historical respiratory-rate records retrieved from ThingSpeak.";
+
+    if (validFeeds.length === 0) {
+      $("chartNote").textContent =
+        "No respiratory-rate data found in Field 3 yet.";
+    }
+  }
+
+  function updateReadingStatus(value) {
+    const box = $("readingStatus");
+
+    if (value === null) {
+      box.style.background = "#e5e7eb";
+      box.style.color = "#374151";
+
+      box.innerHTML = `
+        <h3>Reading unavailable</h3>
+        <p>No respiratory-rate value is available in Field 3.
+        Check the sensor and ThingSpeak field mapping.</p>
+      `;
+
+      return;
+    }
+
+    if (value < 40) {
+      box.style.background = "#fee2e2";
+      box.style.color = "#991b1b";
+
+      box.innerHTML = `
+        <h3>Below typical reference</h3>
+        <p>Recheck the reading while the baby is calm and seek
+        prompt professional medical advice. Do not rely on this
+        prototype for assessment.</p>
+      `;
+    } else if (value > 60) {
+      box.style.background = "#fee2e2";
+      box.style.color = "#991b1b";
+
+      box.innerHTML = `
+        <h3>Above typical reference</h3>
+        <p>A repeat count above 60 breaths/min in a calm newborn
+        needs prompt medical assessment. Do not rely on this
+        prototype for assessment.</p>
+      `;
+    } else {
+      box.style.background = "#dcfce7";
+      box.style.color = "#166534";
+
+      box.innerHTML = `
+        <h3>Within typical reference</h3>
+        <p>The uploaded value is within the typical newborn
+        respiratory-rate reference of 40–60 breaths/min.
+        This does not establish that the baby is healthy.</p>
+      `;
+    }
+  }
+
+  function updateHistoryTable(feeds) {
+    const tbody = $("historyTable");
+
+    if (feeds.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="5">No historical records found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    // Newest first
+    [...feeds].reverse().forEach(feed => {
+      const tr = document.createElement("tr");
+
+      const cells = [
+        formatTimestamp(feed.created_at),
+        formatValue(feed.field1, "%"),
+        formatValue(feed.field2, " bpm"),
+        formatValue(feed.field3, " /min"),
+        formatValue(feed.field4, " °C")
+      ];
+
+      cells.forEach((value, index) => {
+        const td = document.createElement("td");
+        td.textContent = value;
+
+        if (index === 1) td.className = "blue-text";
+        if (index === 2) td.className = "pink-text";
+        if (index === 3) td.className = "green-text";
+        if (index === 4) td.className = "orange-text";
+
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function updateLatestCards(feed) {
+    $("spo2").textContent = formatValue(feed.field1, "%");
+    $("heartRate").textContent = formatValue(feed.field2);
+    $("respRate").textContent = formatValue(feed.field3);
+    $("temperature").textContent = formatValue(feed.field4);
+
+    updateReadingStatus(validNumber(feed.field3));
+  }
+
+  async function loadThingSpeakData() {
+    try {
+      const response = await fetch(makeApiUrl(), {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error("ThingSpeak returned HTTP " + response.status);
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data.feeds)) {
+        throw new Error("Unexpected response from ThingSpeak.");
+      }
+
+      const feeds = data.feeds;
+
+      $("channelDisplay").textContent = CHANNEL_ID;
+      $("recordCount").textContent = feeds.length;
+
+      if (feeds.length > 0) {
+        // Use the most recent record for the metric cards.
+        updateLatestCards(feeds[feeds.length - 1]);
+
+        $("updated").textContent =
+          "Last refreshed: " + new Date().toLocaleString();
+      } else {
+        $("updated").textContent =
+          "Connected, but no readings have been uploaded yet.";
+
+        $("spo2").textContent = "--%";
+        $("heartRate").textContent = "--";
+        $("respRate").textContent = "--";
+        $("temperature").textContent = "--";
+
+        updateReadingStatus(null);
+      }
+
+      createOrUpdateChart(feeds);
+      updateHistoryTable(feeds);
+
+      setConnection(true, "Connected to ThingSpeak");
+
+    } catch (error) {
+      console.error("ThingSpeak error:", error);
+
+      setConnection(false, "Connection error");
+      $("updated").textContent = error.message;
+
+      $("chartNote").textContent =
+        "Unable to retrieve historical readings. Check your channel ID, " +
+        "channel privacy, Read API Key, and internet connection.";
+
+      $("historyTable").innerHTML =
+        '<tr><td colspan="5">Could not load history.</td></tr>';
+    }
+  }
+
+  // Start loading data and refresh every 30 seconds.
+  loadThingSpeakData();
+  setInterval(loadThingSpeakData, REFRESH_INTERVAL);
+</script>
+
+</body>
+</html>
